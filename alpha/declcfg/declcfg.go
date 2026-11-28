@@ -12,6 +12,8 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 
+	"github.com/operator-framework/api/pkg/operators"
+
 	"github.com/operator-framework/operator-registry/v2/alpha/model"
 	"github.com/operator-framework/operator-registry/v2/alpha/property"
 	prettyunmarshaler "github.com/operator-framework/operator-registry/v2/pkg/prettyunmarshaler"
@@ -258,9 +260,15 @@ func (b *Bundle) usesLegacyReleaseVersion() bool {
 				continue
 			}
 			var csv registry.ClusterServiceVersion
-			if err := json.Unmarshal(bundleObj.Data, &csv); err == nil {
-				return csv.GetSubstitutesFor() != ""
+			if err := json.Unmarshal(bundleObj.Data, &csv); err != nil {
+				continue
 			}
+			// bundle objects include CRDs, services and so on, which unmarshal
+			// without error but say nothing about the CSV, so keep looking
+			if csv.Kind != operators.ClusterServiceVersionKind {
+				continue
+			}
+			return csv.GetSubstitutesFor() != ""
 		}
 	}
 

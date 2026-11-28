@@ -217,6 +217,68 @@ func TestBundle_usesLegacyReleaseVersion(t *testing.T) {
 			expected: false,
 		},
 		{
+			name: "path 3: non-CSV olm.bundle.object listed before the CSV",
+			bundle: Bundle{
+				Name:    "messaging-operator.v8.11.3-opr-1-0.1234567890.p",
+				Package: "messaging-server",
+				Properties: []property.Property{
+					{
+						Type: property.TypeBundleObject,
+						Value: mustMarshalJSON(t, property.BundleObject{
+							Data: []byte(`{
+								"apiVersion": "apiextensions.k8s.io/v1",
+								"kind": "CustomResourceDefinition",
+								"metadata": {
+									"name": "brokers.broker.example.io"
+								}
+							}`),
+						}),
+					},
+					{
+						Type: property.TypeBundleObject,
+						Value: mustMarshalJSON(t, property.BundleObject{
+							Data: []byte(`{
+								"apiVersion": "operators.coreos.com/v1alpha1",
+								"kind": "ClusterServiceVersion",
+								"metadata": {
+									"name": "messaging-operator.v8.11.3-opr-1-0.1234567890.p",
+									"annotations": {
+										"olm.substitutesFor": "messaging-operator.v8.11.3-opr-1"
+									}
+								}
+							}`),
+						}),
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "path 3: non-CSV olm.bundle.object carrying the annotation is ignored",
+			bundle: Bundle{
+				Name:    "messaging-operator.v8.11.3-opr-1",
+				Package: "messaging-server",
+				Properties: []property.Property{
+					{
+						Type: property.TypeBundleObject,
+						Value: mustMarshalJSON(t, property.BundleObject{
+							Data: []byte(`{
+								"apiVersion": "v1",
+								"kind": "ConfigMap",
+								"metadata": {
+									"name": "settings",
+									"annotations": {
+										"olm.substitutesFor": "messaging-operator.v8.11.3-opr-0"
+									}
+								}
+							}`),
+						}),
+					},
+				},
+			},
+			expected: false,
+		},
+		{
 			name: "path 3: olm.bundle.object with malformed CSV JSON",
 			bundle: Bundle{
 				Name:    "messaging-operator.v8.11.3-opr-1",
@@ -579,6 +641,50 @@ func TestBundle_VersionRelease_BuildMetadataConversion(t *testing.T) {
 								"apiVersion": "operators.coreos.com/v1alpha1",
 								"kind": "ClusterServiceVersion",
 								"metadata": {
+									"annotations": {
+										"olm.substitutesFor": "test-operator.v1.9.9"
+									}
+								}
+							}`),
+						}),
+					},
+				},
+			},
+			expectedVersion:      "2.0.0",
+			expectedRelease:      "beta.2.1234567890",
+			expectedBuildCleared: true,
+		},
+		{
+			name: "build metadata converted when a CRD precedes the CSV in the bundle objects",
+			bundle: Bundle{
+				Name:    "test-operator.v2.0.0-beta-2-1234567890",
+				Package: "test-package",
+				Properties: []property.Property{
+					{
+						Type: property.TypePackage,
+						Value: mustMarshalJSON(t, property.Package{
+							PackageName: "test-package",
+							Version:     "2.0.0+beta.2.1234567890",
+						}),
+					},
+					{
+						Type: property.TypeBundleObject,
+						Value: mustMarshalJSON(t, property.BundleObject{
+							Data: []byte(`{
+								"apiVersion": "apiextensions.k8s.io/v1",
+								"kind": "CustomResourceDefinition",
+								"metadata": {"name": "widgets.example.io"}
+							}`),
+						}),
+					},
+					{
+						Type: property.TypeBundleObject,
+						Value: mustMarshalJSON(t, property.BundleObject{
+							Data: []byte(`{
+								"apiVersion": "operators.coreos.com/v1alpha1",
+								"kind": "ClusterServiceVersion",
+								"metadata": {
+									"name": "test-operator.v2.0.0-beta-2-1234567890",
 									"annotations": {
 										"olm.substitutesFor": "test-operator.v1.9.9"
 									}
